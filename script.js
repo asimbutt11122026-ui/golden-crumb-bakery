@@ -354,3 +354,51 @@ window.addEventListener('load', () => {
    ========================================================================== */
 
 console.log('🥐 Golden Crumb Bakery website loaded successfully!');
+
+/* ==========================================================================
+   DYNAMIC MENU (loads from the backend API; falls back to the static
+   cards already in the HTML if the API is unreachable)
+   ========================================================================== */
+
+const API_BASE_URL = 'https://golden-crumb-bakery-api.vercel.app';
+
+async function loadMenuFromApi() {
+    const grid = document.getElementById('menuGrid');
+    if (!grid) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/menu`);
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        const data = await response.json();
+
+        const items = (data.categories || []).flatMap(cat => cat.items || []);
+        if (items.length === 0) return; // keep static fallback if menu is empty
+
+        grid.innerHTML = '';
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'menu-card';
+
+            const img = document.createElement('img');
+            img.src = item.imageUrl || '';
+            img.alt = item.name;
+
+            const title = document.createElement('h3');
+            title.textContent = item.name;
+
+            const desc = document.createElement('p');
+            desc.textContent = item.description || '';
+
+            const price = document.createElement('p');
+            price.className = 'price';
+            price.textContent = `$${(item.priceCents / 100).toFixed(2)}`;
+
+            card.append(img, title, desc, price);
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        console.warn('Could not load menu from API, showing static fallback:', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadMenuFromApi);
