@@ -6,9 +6,16 @@ const hamburger = document.getElementById('hamburger');
 const navMenu = document.getElementById('navMenu');
 const navLinks = document.querySelectorAll('.nav-link, .nav-cta, .order-btn');
 
+// Function to close menu
+function closeMenu() {
+    if (hamburger) hamburger.classList.remove('active');
+    if (navMenu) navMenu.classList.remove('active');
+}
+
 // Toggle menu on hamburger click
 if (hamburger) {
-    hamburger.addEventListener('click', () => {
+    hamburger.addEventListener('click', (e) => {
+        e.stopPropagation();
         hamburger.classList.toggle('active');
         navMenu.classList.toggle('active');
     });
@@ -16,17 +23,20 @@ if (hamburger) {
 
 // Close menu when a link is clicked
 navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-        if (hamburger) hamburger.classList.remove('active');
-        if (navMenu) navMenu.classList.remove('active');
+    link.addEventListener('click', (e) => {
+        // Don't close for Order Now button in navbar (it opens modal)
+        if (link.classList.contains('order-btn') && link.closest('.nav-menu')) {
+            e.stopPropagation();
+        }
+        closeMenu();
     });
 });
 
 // Close menu when clicking outside
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.navbar')) {
-        if (hamburger) hamburger.classList.remove('active');
-        if (navMenu) navMenu.classList.remove('active');
+    const navbar = document.querySelector('.navbar');
+    if (navbar && !navbar.contains(e.target)) {
+        closeMenu();
     }
 });
 

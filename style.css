@@ -215,8 +215,8 @@ a:hover {
     }
 
     .nav-menu {
-        position: absolute;
-        top: 70px;
+        position: fixed;
+        top: 60px;
         left: 0;
         right: 0;
         flex-direction: column;
@@ -224,34 +224,61 @@ a:hover {
         gap: 0;
         max-height: 0;
         overflow: hidden;
-        transition: max-height 0.3s ease;
-        z-index: 99;
+        transition: max-height 0.4s ease-in-out;
+        z-index: 100;
+        border-top: 1px solid var(--light-tan);
     }
 
     .nav-menu.active {
-        max-height: 400px;
-        box-shadow: 0 8px 20px var(--soft-shadow);
+        max-height: 100vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     }
 
     .nav-menu li {
         width: 100%;
+        border-bottom: 1px solid var(--light-tan);
+    }
+
+    .nav-menu li:last-child {
+        border-bottom: none;
     }
 
     .nav-menu li a,
     .nav-menu li button {
         display: block;
-        padding: 1rem 2rem;
-        border-bottom: 1px solid var(--light-tan);
+        width: 100%;
+        padding: 1.25rem 2rem;
         color: var(--dark-brown);
+        text-align: left;
         background: none;
         border: none;
         cursor: pointer;
-        text-align: left;
-        width: 100%;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+        text-decoration: none;
+    }
+
+    .nav-menu li a:hover,
+    .nav-menu li button:hover {
+        background-color: var(--light-tan);
     }
 
     .nav-link::after {
         display: none;
+    }
+
+    .nav-menu .order-btn {
+        background-color: var(--caramel);
+        color: white;
+        border-radius: 0;
+        margin: 0;
+        padding: 1.25rem 2rem;
+    }
+
+    .nav-menu .order-btn:hover {
+        background-color: var(--warm-brown);
     }
 
     .nav-cta,
