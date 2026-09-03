@@ -393,7 +393,13 @@ async function loadMenuFromApi() {
             price.className = 'price';
             price.textContent = `$${(item.priceCents / 100).toFixed(2)}`;
 
-            card.append(img, title, desc, price);
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-to-cart-btn';
+            addBtn.type = 'button';
+            addBtn.textContent = 'Add to Cart';
+            addBtn.addEventListener('click', () => addToCart(item));
+
+            card.append(img, title, desc, price, addBtn);
             grid.appendChild(card);
         });
     } catch (err) {
@@ -402,3 +408,290 @@ async function loadMenuFromApi() {
 }
 
 document.addEventListener('DOMContentLoaded', loadMenuFromApi);
+
+/* ==========================================================================
+   CART (Phase 2) — client-side cart state, persisted to localStorage,
+   plus the checkout flow that hands off to Stripe Checkout.
+   ========================================================================== */
+
+const CART_STORAGE_KEY = 'gcb_cart';
+let cart = [];
+
+function loadCartFromStorage() {
+    try {
+        const raw = localStorage.getItem(CART_STORAGE_KEY);
+        cart = raw ? JSON.parse(raw) : [];
+    } catch (err) {
+        cart = [];
+    }
+}
+
+function saveCartToStorage() {
+    try {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch (err) {
+        // ignore (e.g. private browsing storage limits)
+    }
+}
+
+function addToCart(item) {
+    const existing = cart.find(c => c.id === item.id);
+    if (existing) {
+        existing.quantity = Math.min(existing.quantity + 1, 20);
+    } else {
+        cart.push({ id: item.id, name: item.name, priceCents: item.priceCents, quantity: 1 });
+    }
+    saveCartToStorage();
+    renderCart();
+    openCartDrawer();
+}
+
+function updateCartQuantity(itemId, delta) {
+    const line = cart.find(c => c.id === itemId);
+    if (!line) return;
+    line.quantity += delta;
+    if (line.quantity <= 0) {
+        cart = cart.filter(c => c.id !== itemId);
+    }
+    saveCartToStorage();
+    renderCart();
+}
+
+function removeFromCart(itemId) {
+    cart = cart.filter(c => c.id !== itemId);
+    saveCartToStorage();
+    renderCart();
+}
+
+function cartTotals() {
+    const subtotalCents = cart.reduce((sum, c) => sum + c.priceCents * c.quantity, 0);
+    const taxCents = Math.round(subtotalCents * 0.13);
+    const totalCents = subtotalCents + taxCents;
+    return { subtotalCents, taxCents, totalCents };
+}
+
+function formatCents(cents) {
+    return `$${(cents / 100).toFixed(2)}`;
+}
+
+function renderCart() {
+    const itemsEl = document.getElementById('cartItems');
+    const countEl = document.getElementById('cartCount');
+    const subtotalEl = document.getElementById('cartSubtotal');
+    const taxEl = document.getElementById('cartTax');
+    const totalEl = document.getElementById('cartTotal');
+    const checkoutBtn = document.getElementById('cartCheckoutBtn');
+    if (!itemsEl) return;
+
+    itemsEl.innerHTML = '';
+
+    if (cart.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'cart-empty';
+        empty.textContent = 'Your cart is empty.';
+        itemsEl.appendChild(empty);
+    } else {
+        cart.forEach(line => {
+            const row = document.createElement('div');
+            row.className = 'cart-item';
+
+            const info = document.createElement('div');
+            const name = document.createElement('div');
+            name.className = 'cart-item-name';
+            name.textContent = line.name;
+            const price = document.createElement('div');
+            price.className = 'cart-item-price';
+            price.textContent = `${formatCents(line.priceCents)} each`;
+            info.append(name, price);
+
+            const qtyWrap = document.createElement('div');
+            qtyWrap.className = 'cart-item-qty';
+            const minusBtn = document.createElement('button');
+            minusBtn.className = 'qty-btn';
+            minusBtn.type = 'button';
+            minusBtn.textContent = '−';
+            minusBtn.addEventListener('click', () => updateCartQuantity(line.id, -1));
+            const qtySpan = document.createElement('span');
+            qtySpan.textContent = line.quantity;
+            const plusBtn = document.createElement('button');
+            plusBtn.className = 'qty-btn';
+            plusBtn.type = 'button';
+            plusBtn.textContent = '+';
+            plusBtn.addEventListener('click', () => updateCartQuantity(line.id, 1));
+            qtyWrap.append(minusBtn, qtySpan, plusBtn);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'cart-item-remove';
+            removeBtn.type = 'button';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', () => removeFromCart(line.id));
+
+            const right = document.createElement('div');
+            right.append(qtyWrap, removeBtn);
+
+            row.append(info, right);
+            itemsEl.appendChild(row);
+        });
+    }
+
+    const totals = cartTotals();
+    if (subtotalEl) subtotalEl.textContent = formatCents(totals.subtotalCents);
+    if (taxEl) taxEl.textContent = formatCents(totals.taxCents);
+    if (totalEl) totalEl.textContent = formatCents(totals.totalCents);
+
+    const itemCount = cart.reduce((sum, c) => sum + c.quantity, 0);
+    if (countEl) {
+        countEl.textContent = itemCount;
+        countEl.hidden = itemCount === 0;
+    }
+    if (checkoutBtn) checkoutBtn.disabled = cart.length === 0;
+}
+
+function openCartDrawer() {
+    const drawer = document.getElementById('cartDrawer');
+    if (drawer) drawer.classList.add('active');
+}
+
+function closeCartDrawer() {
+    const drawer = document.getElementById('cartDrawer');
+    if (drawer) drawer.classList.remove('active');
+}
+
+function openCheckoutModal() {
+    const modal = document.getElementById('checkoutModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeCheckoutModal() {
+    const modal = document.getElementById('checkoutModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function showCheckoutError(message) {
+    const el = document.getElementById('checkoutError');
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+}
+
+function clearCheckoutError() {
+    const el = document.getElementById('checkoutError');
+    if (el) el.hidden = true;
+}
+
+async function submitCheckout(event) {
+    event.preventDefault();
+    clearCheckoutError();
+
+    const submitBtn = document.getElementById('checkoutSubmitBtn');
+    const name = document.getElementById('checkoutName').value.trim();
+    const email = document.getElementById('checkoutEmail').value.trim();
+    const phone = document.getElementById('checkoutPhone').value.trim();
+    const pickup = document.getElementById('checkoutPickup').value;
+
+    if (cart.length === 0) {
+        showCheckoutError('Your cart is empty.');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Redirecting to payment…';
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: cart.map(c => ({ menuItemId: c.id, quantity: c.quantity })),
+                customer: { name, email, phone },
+                pickupTime: pickup ? new Date(pickup).toISOString() : null,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.url) {
+            throw new Error(data.error || 'Checkout failed');
+        }
+        // Cart is cleared once payment actually succeeds (handled on return
+        // via the success banner), so a cancelled checkout doesn't lose it.
+        window.location.href = data.url;
+    } catch (err) {
+        showCheckoutError(err.message || 'Something went wrong. Please try again.');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Pay with Stripe';
+        }
+    }
+}
+
+function showOrderBanner(type, message) {
+    const banner = document.getElementById('orderBanner');
+    if (!banner) return;
+    banner.className = `order-banner ${type}`;
+    banner.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = message;
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Dismiss';
+    closeBtn.addEventListener('click', () => { banner.hidden = true; });
+    banner.append(span, closeBtn);
+    banner.hidden = false;
+}
+
+async function handleOrderReturnParams() {
+    const params = new URLSearchParams(window.location.search);
+    const order = params.get('order');
+    if (order === 'success') {
+        const sessionId = params.get('session_id');
+        cart = [];
+        saveCartToStorage();
+        renderCart();
+        if (sessionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(sessionId)}`);
+                if (response.ok) {
+                    const order = await response.json();
+                    const paid = order.status === 'paid';
+                    showOrderBanner(
+                        'success',
+                        paid
+                            ? `Thanks, ${order.customerName}! Your order is confirmed — total ${formatCents(order.totalCents)}.`
+                            : `Thanks, ${order.customerName}! We're confirming your payment now — you'll get an email shortly.`
+                    );
+                } else {
+                    showOrderBanner('success', 'Thanks for your order! We\'re confirming your payment now.');
+                }
+            } catch (err) {
+                showOrderBanner('success', 'Thanks for your order! We\'re confirming your payment now.');
+            }
+        } else {
+            showOrderBanner('success', 'Thanks for your order!');
+        }
+    } else if (order === 'cancelled') {
+        showOrderBanner('cancelled', 'Checkout was cancelled — your cart is still saved.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCartFromStorage();
+    renderCart();
+    handleOrderReturnParams();
+
+    const cartFab = document.getElementById('cartFab');
+    const cartDrawerClose = document.getElementById('cartDrawerClose');
+    const cartCheckoutBtn = document.getElementById('cartCheckoutBtn');
+    const checkoutModalClose = document.getElementById('checkoutModalClose');
+    const checkoutForm = document.getElementById('checkoutForm');
+
+    if (cartFab) cartFab.addEventListener('click', openCartDrawer);
+    if (cartDrawerClose) cartDrawerClose.addEventListener('click', closeCartDrawer);
+    if (cartCheckoutBtn) {
+        cartCheckoutBtn.addEventListener('click', () => {
+            closeCartDrawer();
+            openCheckoutModal();
+        });
+    }
+    if (checkoutModalClose) checkoutModalClose.addEventListener('click', closeCheckoutModal);
+    if (checkoutForm) checkoutForm.addEventListener('submit', submitCheckout);
+});
