@@ -860,10 +860,47 @@ a:hover {
 @media (max-width: 768px) {
     .contact-content {
         grid-template-columns: 1fr;
+        gap: 2rem;
     }
 
     .contact-form {
         padding: 1.5rem;
+    }
+
+    .contact {
+        padding: 3rem 1.5rem;
+    }
+
+    .contact h2 {
+        font-size: 1.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-block {
+        padding: 0;
+    }
+
+    .info-block h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-block p {
+        font-size: 0.9rem;
+    }
+
+    .map-placeholder {
+        height: 200px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        padding: 0.6rem 0.8rem;
+        font-size: 16px;
+    }
+
+    .contact-form .btn {
+        padding: 0.75rem 1.5rem;
     }
 }
 
