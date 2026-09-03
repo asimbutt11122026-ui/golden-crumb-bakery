@@ -765,6 +765,7 @@ a:hover {
     justify-content: center;
     cursor: pointer;
     transition: transform 0.3s ease;
+    position: relative;
 }
 
 .map-placeholder:hover {
@@ -776,19 +777,22 @@ a:hover {
     height: 100%;
     object-fit: cover;
     position: absolute;
-    opacity: 0.6;
+    opacity: 0.5;
+    top: 0;
+    left: 0;
 }
 
 .map-placeholder p {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     font-size: 1.2rem;
     font-weight: 600;
     color: var(--dark-brown);
-    background-color: rgba(250, 248, 243, 0.9);
+    background-color: rgba(250, 248, 243, 0.95);
     padding: 1rem 2rem;
     border-radius: 50px;
     margin-bottom: 0;
+    text-align: center;
 }
 
 /* Contact Form */
@@ -876,8 +880,17 @@ a:hover {
         margin-bottom: 2rem;
     }
 
+    .contact-info {
+        order: 2;
+    }
+
+    .contact-form {
+        order: 1;
+    }
+
     .info-block {
         padding: 0;
+        margin-bottom: 1.5rem;
     }
 
     .info-block h3 {
@@ -887,10 +900,11 @@ a:hover {
 
     .info-block p {
         font-size: 0.9rem;
+        line-height: 1.6;
     }
 
     .map-placeholder {
-        height: 200px;
+        display: none;
     }
 
     .form-group input,
