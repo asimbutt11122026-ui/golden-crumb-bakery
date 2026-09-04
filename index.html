@@ -572,7 +572,12 @@
         .add-to-cart-btn { margin-top: 0.75rem; width: 100%; padding: 0.6rem 1rem; border: none; border-radius: 6px; background-color: var(--caramel); color: var(--dark-brown); font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
         .add-to-cart-btn:hover { background-color: var(--warm-brown); color: #fff; }
 
-        .cart-fab { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 2500; width: 58px; height: 58px; border-radius: 50%; border: none; background: var(--dark-brown); color: #fff; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+        /* Cart lives top-right so it never collides with the chatbot toggle
+           (bottom-right, defined in style.css) at any screen size. */
+        .cart-fab { position: fixed; top: 5.5rem; right: 1.5rem; z-index: 2500; width: 58px; height: 58px; border-radius: 50%; border: none; background: var(--dark-brown); color: #fff; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+        @media (max-width: 640px) {
+            .cart-fab { top: 4.5rem; right: 1rem; width: 50px; height: 50px; font-size: 1.25rem; }
+        }
         .cart-count { position: absolute; top: -4px; right: -4px; background: var(--caramel); color: var(--dark-brown); font-size: 0.75rem; font-weight: 700; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
 
         .cart-drawer { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 4000; display: none; }
