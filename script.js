@@ -182,46 +182,13 @@ function showFormNote(message, type) {
 }
 
 /* ==========================================================================
-   CHATBOT FUNCTIONALITY
+   AI CHATBOT (Golden Crumb Bakery Assistant)
    ========================================================================== */
 
-// Chatbot Knowledge Base
-const chatbotKB = {
-    greetings: ['hello', 'hi', 'hey', 'howdy', 'greetings'],
-    hours: ['hours', 'open', 'closed', 'when are you', 'when do you open'],
-    location: ['address', 'where', 'location', 'find you', 'visit'],
-    menu: ['menu', 'what do you sell', 'items', 'products', 'price', 'cost'],
-    custom_cake: ['custom cake', 'wedding', 'birthday cake', 'special occasion', 'cake order'],
-    contact: ['phone', 'call', 'email', 'contact', 'reach'],
-    delivery: ['delivery', 'ship', 'mail', 'send'],
-    ingredients: ['ingredients', 'local', 'fresh', 'quality', 'organic'],
-    testimonials: ['review', 'rating', 'testimonial', 'feedback'],
-    help: ['help', 'support', 'question', 'assist', 'faq'],
-};
+const CHATBOT_MAX_TURNS = 10; // cap history sent to the API so payload/cost stay bounded
 
-const chatbotResponses = {
-    greetings: "Hello! 👋 Welcome to Golden Crumb Bakery. How can I help you today?",
-    
-    hours: "Our hours are:\n📅 Monday–Friday: 7:00 AM – 6:00 PM\n📅 Saturday: 8:00 AM – 5:00 PM\n📅 Sunday: 8:00 AM – 3:00 PM",
-    
-    location: "You can find us at:\n📍 123 Main Street\nToronto, Ontario M5V 3A8\n\nWe'd love to see you!",
-    
-    menu: "We offer:\n🍞 Artisan Breads\n🥐 Croissants & Pastries\n🎂 Cakes\n🧁 Cupcakes\n🍪 Cookies & Treats\n☕ Coffee & Drinks\n\nCheck out our full menu for prices!",
-    
-    custom_cake: "Absolutely! We create beautiful custom cakes for any occasion. Whether it's a wedding, birthday, or celebration, we'd love to make something special for you. Please contact us at hello@goldencrumbbakery.ca or call (416) 555-0147 to discuss your vision!",
-    
-    contact: "📞 Phone: (416) 555-0147\n📧 Email: hello@goldencrumbbakery.ca\n\nFeel free to reach out anytime!",
-    
-    delivery: "Currently, we only serve in-store. However, we're happy to discuss custom orders for special events. Please contact us directly!",
-    
-    ingredients: "We're committed to quality! We use locally-sourced ingredients and traditional baking techniques. Everything is made fresh daily with no shortcuts.",
-    
-    testimonials: "Our customers love us! ⭐ We've been called 'the best croissants outside of France' and people rave about our fresh sourdough. Check our testimonials section on the website!",
-    
-    help: "I can help you with:\n• Hours & location\n• Our menu & products\n• Custom cake orders\n• Contact information\n• Ingredients & freshness\n\nJust ask!",
-    
-    default: "That's a great question! For anything specific, feel free to call us at (416) 555-0147 or email hello@goldencrumbbakery.ca. Our team is always happy to help! 😊"
-};
+let chatbotHistory = [];
+let chatbotBusy = false;
 
 // Chatbot Elements
 const chatbotToggle = document.getElementById('chatbotToggle');
@@ -237,6 +204,12 @@ if (chatbotToggle && chatbotWidget) {
         chatbotWidget.classList.toggle('active');
         if (chatbotWidget.classList.contains('active')) {
             chatbotToggle.classList.add('hidden');
+            if (chatbotMessages && chatbotMessages.children.length === 0) {
+                addChatMessage(
+                    "Hi! I'm the Golden Crumb Bakery assistant 🍞 Ask me about our menu, hours, custom cakes, or any baking question — I can help with substitutions and troubleshooting too!\n\n(I'm AI-powered, so for allergy or food-safety specifics, please double-check with us directly.)",
+                    'bot'
+                );
+            }
             if (chatbotInput) chatbotInput.focus();
             // Scroll to latest message
             setTimeout(() => {
@@ -267,55 +240,80 @@ if (chatbotInput) {
     });
 }
 
-function sendChatMessage() {
-    if (!chatbotInput) return;
-    
+async function sendChatMessage() {
+    if (!chatbotInput || chatbotBusy) return;
+
     const message = chatbotInput.value.trim();
     if (!message) return;
-    
+
     // Add user message
     addChatMessage(message, 'user');
     chatbotInput.value = '';
-    
-    // Show typing indicator
+    chatbotHistory.push({ role: 'user', content: message });
+    chatbotHistory = chatbotHistory.slice(-CHATBOT_MAX_TURNS);
+
+    chatbotBusy = true;
     showTypingIndicator();
-    
-    // Get bot response after a short delay
-    setTimeout(() => {
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: chatbotHistory }),
+        });
+        const data = await response.json().catch(() => ({}));
         removeTypingIndicator();
-        const response = getBotResponse(message);
-        addChatMessage(response, 'bot');
-    }, 600);
+
+        if (!response.ok || !data.reply) {
+            addChatMessage(
+                "Sorry, I'm having trouble connecting right now. Please try again in a moment, or reach us at (416) 555-0147.",
+                'bot'
+            );
+            return;
+        }
+
+        addChatMessage(data.reply, 'bot');
+        chatbotHistory.push({ role: 'assistant', content: data.reply });
+        chatbotHistory = chatbotHistory.slice(-CHATBOT_MAX_TURNS);
+    } catch (err) {
+        removeTypingIndicator();
+        addChatMessage(
+            "Sorry, I'm having trouble connecting right now. Please try again in a moment, or reach us at (416) 555-0147.",
+            'bot'
+        );
+    } finally {
+        chatbotBusy = false;
+    }
 }
 
 function addChatMessage(text, sender) {
     if (!chatbotMessages) return;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}`;
-    
+
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
     bubble.textContent = text;
-    
+
     messageDiv.appendChild(bubble);
     chatbotMessages.appendChild(messageDiv);
-    
+
     // Auto-scroll to bottom
     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
 }
 
 function showTypingIndicator() {
     if (!chatbotMessages) return;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message bot';
     messageDiv.id = 'typingIndicator';
-    
+
     const typing = document.createElement('div');
     typing.className = 'chat-typing';
     typing.innerHTML = '<span></span><span></span><span></span>';
-    
+
     messageDiv.appendChild(typing);
     chatbotMessages.appendChild(messageDiv);
     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
@@ -327,27 +325,6 @@ function removeTypingIndicator() {
         indicator.remove();
     }
 }
-
-function getBotResponse(userMessage) {
-    const message = userMessage.toLowerCase();
-    
-    // Check each category
-    for (const [category, keywords] of Object.entries(chatbotKB)) {
-        if (keywords.some(keyword => message.includes(keyword))) {
-            return chatbotResponses[category];
-        }
-    }
-    
-    // Default response
-    return chatbotResponses.default;
-}
-
-// Welcome message on load
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        addChatMessage("🥐 Hi there! Need help with anything about Golden Crumb Bakery?", 'bot');
-    }, 500);
-});
 
 /* ==========================================================================
    UTILITY: Log page loaded
